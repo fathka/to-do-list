@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "438679314110",
+    "project_id": "dailyplanner-a8420",
+    "storage_bucket": "dailyplanner-a8420.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:438679314110:android:13c20532a9a4ae4fbd88ef",
+        "android_client_info": {
+          "package_name": "com.example.daily_planner_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBvQfHC4uE3nsRN2yj1rDbRIVxRXR6bQso"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
