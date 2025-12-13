@@ -1,12 +1,14 @@
-// lib/screens/main_screen.dart
 
+import 'package:daily_planner_app/theme/theme_config.dart';
 import 'package:flutter/material.dart';
 import 'today_tasks_screen.dart'; 
 import 'all_tasks_screen.dart'; 
 import 'new_task_screen.dart'; 
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final Function(AppTheme) onChangeTheme;
+
+  const MainScreen({super.key, required this.onChangeTheme});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -32,12 +34,37 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Daily Planner'),
+        actions: [
+          PopupMenuButton<AppTheme>(
+            icon: const Icon(Icons.color_lens),
+            onSelected: widget.onChangeTheme,
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: AppTheme.blue,
+                child: Text('Tema Biru'),
+              ),
+              PopupMenuItem(
+                value: AppTheme.pink,
+                child: Text('Tema Pink'),
+              ),
+              PopupMenuItem(
+                value: AppTheme.purple,
+                child: Text('Tema Ungu'),
+              ),
+            ],
+          ),
+        ],
       ),
-      body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex),
-      ),
+
+      // 🔥 INI YANG KEMARIN HILANG
+      body: _widgetOptions.elementAt(_selectedIndex),
+
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Theme.of(context).colorScheme.secondary,
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Hari Ini',
@@ -46,16 +73,13 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.list_alt),
             label: 'Semua Tugas',
           ),
-          // Halaman Tambah
           BottomNavigationBarItem(
             icon: Icon(Icons.add_box),
             label: 'Tambah',
           ),
         ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blueAccent,
-        onTap: _onItemTapped,
       ),
     );
   }
+
 }
