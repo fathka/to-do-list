@@ -6,6 +6,14 @@ import 'package:daily_planner_app/models/task_model.dart';
 
 import 'new_task_screen.dart'; // Untuk mendapatkan nama koleksi
 
+Future<void> _toggleTaskStatus(Task task) async {
+  await FirebaseFirestore.instance
+    .collection(taskCollectionName)
+    .doc(task.id)
+    .update({'isDone': !task.isDone});
+}
+
+
 class TodayTasksScreen extends StatelessWidget {
   const TodayTasksScreen({super.key});
 
@@ -98,9 +106,11 @@ class TodayTasksScreen extends StatelessWidget {
                   return Card(
                     margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
                     child: ListTile(
-                      leading: Icon(
-                        task.isDone ? Icons.check_box : Icons.check_box_outline_blank,
-                        color: task.isDone ? Colors.blueAccent : Colors.grey,
+                      leading: IconButton(
+                        icon:Icon(
+                          task.isDone ? Icons.check_box : Icons.check_box_outline_blank,
+                          color: task.isDone ? Colors.blueAccent : Colors.grey,
+                      ), onPressed: () => _toggleTaskStatus(task),
                       ),
                       title: Text(
                         task.title,
