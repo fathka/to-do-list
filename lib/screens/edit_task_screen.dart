@@ -30,7 +30,10 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
     // Inisialisasi controller dengan data lama
     _titleController = TextEditingController(text: widget.task.title);
-    _descriptionController = TextEditingController(text: widget.task.description);
+    _descriptionController = TextEditingController(
+      text: widget.task.description,
+    );
+    // PERBAIKAN: Menggunakan dueDate sesuai dengan model Task
     _selectedDate = widget.task.dueDate;
     _selectedPriority = widget.task.priority;
   }
@@ -65,11 +68,11 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
           .collection(taskCollectionName)
           .doc(widget.task.id)
           .update({
-        'title': _titleController.text,
-        'description': _descriptionController.text,
-        'dueDate': Timestamp.fromDate(_selectedDate),
-        'priority': _selectedPriority,
-      });
+            'title': _titleController.text,
+            'description': _descriptionController.text,
+            'dueDate': Timestamp.fromDate(_selectedDate),
+            'priority': _selectedPriority,
+          });
 
       if (!mounted) return;
 
@@ -79,18 +82,17 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memperbarui tugas: $e')),
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal memperbarui tugas: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Tugas'),
-      ),
+      appBar: AppBar(title: const Text('Edit Tugas')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -146,12 +148,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: _priorities
-                    .map(
-                      (p) => DropdownMenuItem(
-                        value: p,
-                        child: Text(p),
-                      ),
-                    )
+                    .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                     .toList(),
                 onChanged: (value) {
                   setState(() {

@@ -28,7 +28,7 @@ class Task {
     return {
       'title': title,
       'description': description,
-      'dueDate': Timestamp.fromDate(dueDate), 
+      'dueDate': Timestamp.fromDate(dueDate),
       'priority': priority,
       'isDone': isDone,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -39,7 +39,6 @@ class Task {
   // Konstruktor untuk membaca dari Firestore (Firestore Timestamp -> Dart DateTime)
   // ----------------------------------------------------
   factory Task.fromMap(Map<String, dynamic> map, String id) {
-    
     // Ambil data tanggal sebagai 'dynamic' lalu pastikan casting ke 'Timestamp'
     // Menggunakan safe access untuk memastikan tipe data benar, mengatasi error
     final dynamic dueData = map['dueDate'];
@@ -47,14 +46,14 @@ class Task {
 
     DateTime resolvedDueDate;
     DateTime resolvedCreatedAt;
-    
+
     // Pastikan konversi hanya jika datanya benar-benar Timestamp
     if (dueData is Timestamp) {
       resolvedDueDate = dueData.toDate();
     } else {
       // Jika ternyata masih string atau null (error data lama), gunakan DateTime.now() sebagai fallback.
       // Anda bisa menggantinya dengan penanganan error yang lebih spesifik jika diperlukan.
-      resolvedDueDate = DateTime.now(); 
+      resolvedDueDate = DateTime.now();
     }
 
     if (createdData is Timestamp) {

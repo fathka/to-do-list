@@ -1,17 +1,16 @@
+// lib/screens/all_tasks_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:daily_planner_app/models/task_model.dart';
-import 'package:intl/intl.dart';
-import 'new_task_screen.dart';
-import 'edit_task_screen.dart';
 
-// =====================
-// HELPER FUNCTION
-// =====================
-bool isSameWeek(DateTime a, DateTime b) {
-  final aWeek = a.difference(DateTime(a.year, 1, 1)).inDays ~/ 7;
-  final bWeek = b.difference(DateTime(b.year, 1, 1)).inDays ~/ 7;
-  return a.year == b.year && aWeek == bWeek;
+import 'new_task_screen.dart'; // Untuk mendapatkan nama koleksi
+
+Future<void> _toggleTaskStatus(Task task) async {
+  await FirebaseFirestore.instance
+      .collection(taskCollectionName)
+      .doc(task.id)
+      .update({'isDone': !task.isDone});
 }
 
 class AllTasksScreen extends StatelessWidget {
@@ -30,157 +29,124 @@ class AllTasksScreen extends StatelessWidget {
     }
   }
 
-  // =====================
-  // FIRESTORE ACTIONS
-  // =====================
-  Future<void> _toggleTaskStatus(Task task) async {
-    await FirebaseFirestore.instance
-        .collection(taskCollectionName)
-        .doc(task.id)
-        .update({'isDone': !task.isDone});
-  }
-
-  Future<void> _deleteTask(String taskId, BuildContext context) async {
-    await FirebaseFirestore.instance
-        .collection(taskCollectionName)
-        .doc(taskId)
-        .delete();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tugas berhasil dihapus')),
-    );
-  }
-
-  // =====================
-  // GROUPING LOGIC
-  // =====================
-  Map<String, List<Task>> _groupTasks(List<Task> tasks) {
-    final now = DateTime.now();
-    final nextWeek = now.add(const Duration(days: 7));
-
-    return {
-      'Minggu Ini': tasks.where((t) =>
-          !t.isDone && isSameWeek(t.dueDate, now)).toList(),
-
-      'Minggu Depan': tasks.where((t) =>
-          !t.isDone &&
-          t.dueDate.isAfter(now) &&
-          isSameWeek(t.dueDate, nextWeek)).toList(),
-
-      'Nanti': tasks.where((t) =>
-          !t.isDone && t.dueDate.isAfter(nextWeek)).toList(),
-
-      'Sudah Selesai': tasks.where((t) => t.isDone).toList(),
-    };
-  }
-
-  // =====================
-  // TASK TILE
-  // =====================
-  Widget _taskTile(Task task, BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      elevation: 2,
-      child: ListTile(
-        leading: IconButton(
-          icon: Icon(
-            task.isDone ? Icons.check_circle : Icons.circle_outlined,
-            color: task.isDone ? Colors.blueAccent : Colors.grey,
-          ),
-          onPressed: () => _toggleTaskStatus(task),
-        ),
-        title: Text(
-          task.title,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            decoration:
-                task.isDone ? TextDecoration.lineThrough : TextDecoration.none,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (task.description.isNotEmpty)
-              Text(task.description),
-            const SizedBox(height: 4),
-            Text(
-              'Jatuh tempo: ${DateFormat('dd MMM yyyy').format(task.dueDate)}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.orange),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => EditTaskScreen(task: task),
-                  ),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _deleteTask(task.id!, context),
-            ),
-          ],
-        ),
-        isThreeLine: true,
-      ),
-    );
-  }
-
-  // =====================
-  // BUILD UI
-  // =====================
   @override
   Widget build(BuildContext context) {
+    // Baca data dari koleksi 'daily_plan'
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection(taskCollectionName)
-          .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(child: Text('Belum ada tugas'));
+        if (snapshot.hasError) {
+          return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
         }
 
-        final tasks = snapshot.data!.docs
-            .map((doc) => Task.fromMap(
-                doc.data() as Map<String, dynamic>, doc.id))
-            .toList();
+        if (!snapshot.hasData) {
+          return const Center(child: Text('Tidak ada data tugas.'));
+        }
 
-        final groupedTasks = _groupTasks(tasks);
+        final allTasks = snapshot.data!.docs.map((doc) {
+          return Task.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+        }).toList();
 
-        return ListView(
-          children: groupedTasks.entries.map((entry) {
-            if (entry.value.isEmpty) return const SizedBox();
+        final totalTasks = allTasks.length;
+        final completedTasks = allTasks.where((task) => task.isDone).length;
+        final progress = totalTasks > 0 ? completedTasks / totalTasks : 0.0;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                  child: Text(
-                    entry.key,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+        return Column(
+          children: [
+            // Indikator Kemajuan
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Card(
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Kemajuan Semua Tugas',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: Colors.grey[300],
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Colors.blueAccent,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${(progress * 100).toStringAsFixed(0)}% Selesai ($completedTasks/$totalTasks)',
+                      ),
+                    ],
                   ),
                 ),
-                ...entry.value.map((task) => _taskTile(task, context)),
-              ],
-            );
-          }).toList(),
+              ),
+            ),
+
+            // Daftar Semua Tugas
+            Expanded(
+              child: allTasks.isEmpty
+                  ? const Center(child: Text('Tidak ada tugas!'))
+                  : ListView.builder(
+                      itemCount: allTasks.length,
+                      itemBuilder: (context, index) {
+                        final task = allTasks[index];
+
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                            vertical: 4,
+                            horizontal: 16,
+                          ),
+                          child: ListTile(
+                            leading: IconButton(
+                              icon: Icon(
+                                task.isDone
+                                    ? Icons.check_box
+                                    : Icons.check_box_outline_blank,
+                                color: task.isDone
+                                    ? Colors.blueAccent
+                                    : Colors.grey,
+                              ),
+                              onPressed: () => _toggleTaskStatus(task),
+                            ),
+                            title: Text(
+                              task.title,
+                              style: TextStyle(
+                                decoration: task.isDone
+                                    ? TextDecoration.lineThrough
+                                    : TextDecoration.none,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            subtitle: Text(
+                              task.description.isEmpty
+                                  ? 'Tidak ada deskripsi'
+                                  : task.description,
+                            ),
+                            trailing: Text(
+                              task.priority,
+                              style: TextStyle(
+                                color: _getPriorityColor(task.priority),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
         );
       },
     );
