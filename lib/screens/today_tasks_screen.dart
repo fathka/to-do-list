@@ -1,11 +1,12 @@
 // lib/screens/today_tasks_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:daily_planner_app/models/task_model.dart';
-import 'edit_task_screen.dart';
-import 'new_task_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Akses Firestore
+import 'package:daily_planner_app/models/task_model.dart'; // Model data Task
+import 'edit_task_screen.dart'; // Screen untuk edit task
+import 'new_task_screen.dart'; // Screen untuk buat task baru (mungkin untuk import konstanta)
 
+// 1. FUNGSI UTILITAS: Toggle status selesai/tidak pada suatu Task (sama seperti di all_tasks_screen)
 Future<void> _toggleTaskStatus(Task task) async {
   await FirebaseFirestore.instance
       .collection(taskCollectionName)
@@ -13,6 +14,7 @@ Future<void> _toggleTaskStatus(Task task) async {
       .update({'isDone': !task.isDone});
 }
 
+// 2. FUNGSI UTILITAS: Hapus task dengan konfirmasi dialog (sama seperti di all_tasks_screen)
 Future<void> _deleteTask(BuildContext context, Task task) async {
   final confirm = await showDialog<bool>(
     context: context,
@@ -41,15 +43,13 @@ Future<void> _deleteTask(BuildContext context, Task task) async {
           .delete();
 
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Tugas berhasil dihapus')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Tugas berhasil dihapus')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal menghapus tugas: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Gagal menghapus tugas: $e')));
       }
     }
   }
@@ -58,6 +58,7 @@ Future<void> _deleteTask(BuildContext context, Task task) async {
 class TodayTasksScreen extends StatelessWidget {
   const TodayTasksScreen({super.key});
 
+  // 3. HELPER: Tentukan warna berdasarkan prioritas task (sama seperti di all_tasks_screen)
   Color _getPriorityColor(String priority) {
     switch (priority) {
       case 'High':
@@ -71,9 +72,9 @@ class TodayTasksScreen extends StatelessWidget {
     }
   }
 
+  // 4. WIDGET: Membangun UI kartu untuk satu task (sama seperti di all_tasks_screen)
   Widget _buildTaskCard(BuildContext context, Task task) {
     final theme = Theme.of(context);
-
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
       child: ListTile(
@@ -87,15 +88,13 @@ class TodayTasksScreen extends StatelessWidget {
         title: Text(
           task.title,
           style: TextStyle(
-            decoration: task.isDone
-                ? TextDecoration.lineThrough
-                : TextDecoration.none,
+            decoration:
+                task.isDone ? TextDecoration.lineThrough : TextDecoration.none,
             fontWeight: FontWeight.w500,
           ),
         ),
         subtitle: Text(
-          task.description.isEmpty ? 'Tidak ada deskripsi' : task.description,
-        ),
+            task.description.isEmpty ? 'Tidak ada deskripsi' : task.description),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -157,36 +156,40 @@ class TodayTasksScreen extends StatelessWidget {
     );
   }
 
+  // 5. WIDGET BUILD: Method utama yang membangun seluruh UI screen
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
+    // Gunakan StreamBuilder untuk real-time updates dari Firestore
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection(taskCollectionName)
-          .snapshots(),
+      stream:
+          FirebaseFirestore.instance.collection(taskCollectionName).snapshots(),
       builder: (context, snapshot) {
+        // STATE 1: Loading data
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-
+        // STATE 2: Error
         if (snapshot.hasError) {
           return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
         }
-
+        // STATE 3: Data tidak ada atau kosong
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Center(child: Text('Tidak ada data tugas.'));
         }
 
+        // STATE 4: Data berhasil didapatkan
+        // Filter tugas untuk hari ini (filtering di sisi klien/Flutter)
         final now = DateTime.now();
-        final nowDay = DateTime(now.year, now.month, now.day);
+        final nowDay = DateTime(now.year, now.month, now.day); // Normalisasi tanggal ke 00:00:00
 
-        // Filter data di sisi klien
         final todayTasks = snapshot.data!.docs
             .map((doc) {
+              // Konversi dokumen Firestore ke objek Task
               return Task.fromMap(doc.data() as Map<String, dynamic>, doc.id);
             })
             .where((task) {
+              // Filter hanya task dengan dueDate hari ini
               final taskDueDateOnly = DateTime(
                 task.dueDate.year,
                 task.dueDate.month,
@@ -196,21 +199,21 @@ class TodayTasksScreen extends StatelessWidget {
             })
             .toList();
 
-        // Sort by priority: High -> Medium -> Low
+        // Urutkan task berdasarkan prioritas (High -> Medium -> Low)
         todayTasks.sort((a, b) {
           const priorityOrder = {'High': 0, 'Medium': 1, 'Low': 2};
-          return priorityOrder[a.priority]!.compareTo(
-            priorityOrder[b.priority]!,
-          );
+          return priorityOrder[a.priority]!.compareTo(priorityOrder[b.priority]!);
         });
 
+        // Hitung statistik untuk progress indicator
         final totalTasks = todayTasks.length;
         final completedTasks = todayTasks.where((task) => task.isDone).length;
         final progress = totalTasks > 0 ? completedTasks / totalTasks : 0.0;
 
+        // Bangun UI utama yang terdiri dari Progress Card dan List Task
         return Column(
           children: [
-            // Progress Indicator
+            // PROGRESS INDICATOR CARD untuk tugas hari ini
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Card(
@@ -246,9 +249,8 @@ class TodayTasksScreen extends StatelessWidget {
                         child: LinearProgressIndicator(
                           value: progress,
                           backgroundColor: Colors.grey[300],
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            theme.colorScheme.primary,
-                          ),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
                           minHeight: 8,
                         ),
                       ),
@@ -263,10 +265,11 @@ class TodayTasksScreen extends StatelessWidget {
               ),
             ),
 
-            // Today's Tasks List
+            // LIST TASK UNTUK HARI INI
             Expanded(
               child: todayTasks.isEmpty
-                  ? Center(
+                  ? // Tampilan jika tidak ada tugas hari ini
+                  Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -280,15 +283,15 @@ class TodayTasksScreen extends StatelessWidget {
                             'Tidak ada tugas jatuh tempo hari ini!',
                             style: TextStyle(
                               fontSize: 16,
-                              color: theme.colorScheme.onSurface.withOpacity(
-                                0.6,
-                              ),
+                              color:
+                                  theme.colorScheme.onSurface.withOpacity(0.6),
                             ),
                           ),
                         ],
                       ),
                     )
-                  : ListView.builder(
+                  : // Tampilan jika ada tugas hari ini
+                  ListView.builder(
                       itemCount: todayTasks.length,
                       itemBuilder: (context, index) {
                         final task = todayTasks[index];
