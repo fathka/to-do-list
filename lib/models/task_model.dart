@@ -1,74 +1,78 @@
 // lib/models/task_model.dart
 
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Untuk Timestamp Firebase
 
 class Task {
-  String? id;
-  String title;
-  String description;
-  DateTime dueDate;
-  String priority;
-  bool isDone;
-  DateTime createdAt;
+  // PROPERTIES: Data yang disimpan untuk satu tugas
+  String? id;           // ID dokumen Firestore (nullable saat membuat baru)
+  String title;         // Judul tugas
+  String description;   // Deskripsi detail
+  DateTime dueDate;     // Tenggat waktu
+  String priority;      // Prioritas (High/Medium/Low)
+  bool isDone;          // Status selesai
+  DateTime createdAt;   // Waktu pembuatan
 
+  // Constructor utama untuk membuat instance Task di aplikasi
   Task({
-    this.id,
+    this.id,                       // ID bisa null untuk task baru
     required this.title,
     required this.description,
     required this.dueDate,
     required this.priority,
-    this.isDone = false,
+    this.isDone = false,           // Default: belum selesai
     required this.createdAt,
   });
 
-  // ----------------------------------------------------
-  // Metode untuk mengirim ke Firestore (Dart DateTime -> Firestore Timestamp)
-  // ----------------------------------------------------
+  // ====================================================
+  // SERIALIZATION: Konversi Dart object → Map untuk Firestore
+  // ====================================================
   Map<String, dynamic> toMap() {
     return {
       'title': title,
       'description': description,
-      'dueDate': Timestamp.fromDate(dueDate),
+      'dueDate': Timestamp.fromDate(dueDate),     // Konversi DateTime → Timestamp Firestore
       'priority': priority,
       'isDone': isDone,
-      'createdAt': Timestamp.fromDate(createdAt),
+      'createdAt': Timestamp.fromDate(createdAt), // Konversi DateTime → Timestamp Firestore
     };
   }
 
-  // ----------------------------------------------------
-  // Konstruktor untuk membaca dari Firestore (Firestore Timestamp -> Dart DateTime)
-  // ----------------------------------------------------
+  // ====================================================
+  // DESERIALIZATION: Konversi Map dari Firestore → Dart object
+  // ====================================================
   factory Task.fromMap(Map<String, dynamic> map, String id) {
-    // Ambil data tanggal sebagai 'dynamic' lalu pastikan casting ke 'Timestamp'
-    // Menggunakan safe access untuk memastikan tipe data benar, mengatasi error
-    final dynamic dueData = map['dueDate'];
+    // Data mentah dari Firestore bisa dalam berbagai format, perlu safety check
+    final dynamic dueData = map['dueDate'];       // Bisa Timestamp, atau tipe lain jika data korup
     final dynamic createdData = map['createdAt'];
 
     DateTime resolvedDueDate;
     DateTime resolvedCreatedAt;
 
-    // Pastikan konversi hanya jika datanya benar-benar Timestamp
+    // SAFETY CHECK 1: Validasi dan konversi dueDate
     if (dueData is Timestamp) {
+      // Format normal: konversi Timestamp Firebase ke DateTime Dart
       resolvedDueDate = dueData.toDate();
     } else {
-      // Jika ternyata masih string atau null (error data lama), gunakan DateTime.now() sebagai fallback.
-      // Anda bisa menggantinya dengan penanganan error yang lebih spesifik jika diperlukan.
+      // Fallback jika data tidak valid (misal: string, null, atau tipe lain)
+      // Gunakan DateTime.now() sebagai default untuk mencegah crash
       resolvedDueDate = DateTime.now();
     }
 
+    // SAFETY CHECK 2: Validasi dan konversi createdAt
     if (createdData is Timestamp) {
       resolvedCreatedAt = createdData.toDate();
     } else {
       resolvedCreatedAt = DateTime.now();
     }
 
+    // Kembalikan instance Task dengan data yang sudah divalidasi
     return Task(
-      id: id,
-      title: map['title'] ?? '',
+      id: id, // ID dokumen dari Firestore (wajib saat membaca)
+      title: map['title'] ?? '',              // Default: string kosong jika null
       description: map['description'] ?? '',
       dueDate: resolvedDueDate,
-      priority: map['priority'] ?? 'Medium',
-      isDone: map['isDone'] ?? false,
+      priority: map['priority'] ?? 'Medium',  // Default: 'Medium' jika null
+      isDone: map['isDone'] ?? false,         // Default: false jika null
       createdAt: resolvedCreatedAt,
     );
   }
